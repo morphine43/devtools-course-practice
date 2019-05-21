@@ -34,7 +34,7 @@ double LinePlaneIntersection::ScalarProduct(Dot A, Dot B) {
 }
 
 void LinePlaneIntersection::Normalize(Dot A) {
-    double mvn; // модуль вектора нормали
+    double mvn;  // the module of the vector of the normal
 
     mvn = sqrt(A.x * A.x + A.y * A.y + A.z * A.z);
     A.x = A.x / mvn;
@@ -58,7 +58,8 @@ bool LinePlaneIntersection::IncorrectPlane(Dot A, Dot B, Dot C) {
     return false;
 }
 
-Dot LinePlaneIntersection::PlaneIntersectLine(Dot A, Dot B, Dot C, Dot X, Dot Y) {
+Dot LinePlaneIntersection::PlaneIntersectLine(Dot A, Dot B, Dot C,
+    Dot X, Dot Y) {
     Dot N, V, W, PlaneIntersectLine = { 0, 0, 0 };
     double e, d;
 
@@ -82,7 +83,7 @@ Dot LinePlaneIntersection::PlaneIntersectLine(Dot A, Dot B, Dot C, Dot X, Dot Y)
         PlaneIntersectLine.y = X.y + W.y * d / e;
         PlaneIntersectLine.z = X.z + W.z * d / e;
         NotIntersectPlaneLine = false;
-	}
+    }
 
     return PlaneIntersectLine;
 }

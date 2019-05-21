@@ -64,7 +64,8 @@ TEST(Aksenov_Nikita_LinePlaneIntersection_Test, IncorrectLine) {
     LinePlaneIntersection F;
 
     // Act & Assert
-    EXPECT_ANY_THROW(F.PlaneIntersectLine(Plane1, Plane2, Plane3, Line1, Line2));
+    EXPECT_ANY_THROW(F.PlaneIntersectLine(Plane1, Plane2, Plane3,
+        Line1, Line2));
 }
 
 TEST(Aksenov_Nikita_LinePlaneIntersection_Test, IncorrectPlane) {
@@ -77,5 +78,6 @@ TEST(Aksenov_Nikita_LinePlaneIntersection_Test, IncorrectPlane) {
     LinePlaneIntersection F;
 
     // Act & Assert
-    EXPECT_ANY_THROW(F.PlaneIntersectLine(Plane1, Plane2, Plane3, Line1, Line2));
+    EXPECT_ANY_THROW(F.PlaneIntersectLine(Plane1, Plane2, Plane3,
+        Line1, Line2));
 }
