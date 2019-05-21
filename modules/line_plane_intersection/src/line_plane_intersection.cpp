@@ -6,31 +6,31 @@ LinePlaneIntersection::LinePlaneIntersection() :
     NotIntersectPlaneLine(true) {}
 
 Dot LinePlaneIntersection::CreateVector(Dot A, Dot B) {
-    Dot CreateVector;
+    Dot CV;
 
-    CreateVector.x = B.x - A.x;
-    CreateVector.y = B.y - A.y;
-    CreateVector.z = B.z - A.z;
+    CV.x = B.x - A.x;
+    CV.y = B.y - A.y;
+    CV.z = B.z - A.z;
 
-    return CreateVector;
+    return CV;
 }
 
 Dot LinePlaneIntersection::VectorProduct(Dot A, Dot B) {
-    Dot VectorProduct;
+    Dot VP;
 
-    VectorProduct.x = A.y * B.z - B.y * A.z;
-    VectorProduct.y = A.z * B.x - B.z * A.x;
-    VectorProduct.z = A.x * B.y - B.x * A.y;
+    VP.x = A.y * B.z - B.y * A.z;
+    VP.y = A.z * B.x - B.z * A.x;
+    VP.z = A.x * B.y - B.x * A.y;
 
-    return VectorProduct;
+    return VP;
 }
 
 double LinePlaneIntersection::ScalarProduct(Dot A, Dot B) {
-    double ScalarProduct;
+    double SP;
 
-    ScalarProduct = A.x * B.x + A.y * B.y + A.z * B.z;
+    SP = A.x * B.x + A.y * B.y + A.z * B.z;
 
-    return ScalarProduct;
+    return SP;
 }
 
 void LinePlaneIntersection::Normalize(Dot A) {
