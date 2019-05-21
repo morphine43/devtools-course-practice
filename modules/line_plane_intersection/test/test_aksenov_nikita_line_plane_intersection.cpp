@@ -69,7 +69,7 @@ TEST(Aksenov_Nikita_LinePlaneIntersection_Test, IncorrectLine) {
         Line1, Line2));
 }
 
-TEST(Aksenov_Nikita_LinePlaneIntersection_Test, IncorrectPlane) {
+TEST(Aksenov_Nikita_LinePlaneIntersection_Test, IncorrectPlaneA) {
     // Arrange
     Dot Line1 = { 0, 0, 0 };
     Dot Line2 = { 0, 1, 0 };
@@ -82,3 +82,32 @@ TEST(Aksenov_Nikita_LinePlaneIntersection_Test, IncorrectPlane) {
     EXPECT_ANY_THROW(F.PlaneIntersectLine(Plane1, Plane2, Plane3,
         Line1, Line2));
 }
+
+TEST(Aksenov_Nikita_LinePlaneIntersection_Test, IncorrectPlaneB) {
+    // Arrange
+    Dot Line1 = { 0, 0, 0 };
+    Dot Line2 = { 0, 1, 0 };
+    Dot Plane1 = { 0, 0, 0 };
+    Dot Plane2 = { 0, 1, 0 };
+    Dot Plane3 = { 0, 0, 0 };
+    LinePlaneIntersection F;
+
+    // Act & Assert
+    EXPECT_ANY_THROW(F.PlaneIntersectLine(Plane1, Plane2, Plane3,
+        Line1, Line2));
+}
+
+TEST(Aksenov_Nikita_LinePlaneIntersection_Test, IncorrectPlaneC) {
+    // Arrange
+    Dot Line1 = { 0, 0, 0 };
+    Dot Line2 = { 0, 1, 0 };
+    Dot Plane1 = { 0, 1, 0 };
+    Dot Plane2 = { 0, 0, 0 };
+    Dot Plane3 = { 0, 0, 0 };
+    LinePlaneIntersection F;
+
+    // Act & Assert
+    EXPECT_ANY_THROW(F.PlaneIntersectLine(Plane1, Plane2, Plane3,
+        Line1, Line2));
+}
+
