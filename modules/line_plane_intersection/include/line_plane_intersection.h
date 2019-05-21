@@ -11,7 +11,7 @@ struct Dot {
 
 class LinePlaneIntersection {
  public:
-    LinePlaneIntersection ();
+    LinePlaneIntersection();
 
     Dot PlaneIntersectLine(Dot X, Dot Y, Dot Z, Dot A, Dot B);
     bool GetNotIntersectPlaneLine();
@@ -27,4 +27,4 @@ class LinePlaneIntersection {
     void Normalize(Dot A);
 };
 
-#endif // !MODULES_LINE_PLANE_INTERSECTION_INCLUDE_LINE_PLANE_INTERSECTION_H_
+#endif  // MODULES_LINE_PLANE_INTERSECTION_INCLUDE_LINE_PLANE_INTERSECTION_H_

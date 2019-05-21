@@ -1,6 +1,6 @@
 // Copyright 2019 Aksenov Nikita
 
-#include "line_plane_intersection.h"
+#include "include/line_plane_intersection.h"
 
 LinePlaneIntersection::LinePlaneIntersection() :
     NotIntersectPlaneLine(true) {}
