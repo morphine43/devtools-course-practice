@@ -1,6 +1,7 @@
 // Copyright 2019 Aksenov Nikita
 
-#include <gtest\gtest.h>
+#include <gtest/gtest.h>
+
 #include "include/line_plane_intersection.h"
 
 TEST(Aksenov_Nikita_LinePlaneIntersection_Test, VariableDeclaration) {
