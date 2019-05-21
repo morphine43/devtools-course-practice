@@ -110,4 +110,3 @@ TEST(Aksenov_Nikita_LinePlaneIntersection_Test, IncorrectPlaneC) {
     EXPECT_ANY_THROW(F.PlaneIntersectLine(Plane1, Plane2, Plane3,
         Line1, Line2));
 }
-
