@@ -2,8 +2,8 @@
 
 #include "include/line_plane_intersection.h"
 
-LinePlaneIntersection::LinePlaneIntersection() :
-    NotIntersectPlaneLine(true) {}
+LinePlaneIntersection::LinePlaneIntersection() {
+}
 
 Dot LinePlaneIntersection::CreateVector(Dot A, Dot B) {
     Dot CV;
@@ -34,7 +34,7 @@ double LinePlaneIntersection::ScalarProduct(Dot A, Dot B) {
 }
 
 void LinePlaneIntersection::Normalize(Dot A) {
-    double mvn;  // the module of the vector of the normal
+    double mvn;  // module of the vector of the normal
 
     mvn = sqrt(A.x * A.x + A.y * A.y + A.z * A.z);
     A.x = A.x / mvn;
@@ -42,18 +42,19 @@ void LinePlaneIntersection::Normalize(Dot A) {
     A.z = A.z / mvn;
 }
 
-bool LinePlaneIntersection::IncorrectLine(Dot A, Dot B) {
-    if (A.x == B.x && A.y == B.y && A.z == B.z)
+bool LinePlaneIntersection::IncorrectLine(const Dot A, const Dot B) {
+    if (A == B)
         return true;
     return false;
 }
 
-bool LinePlaneIntersection::IncorrectPlane(Dot A, Dot B, Dot C) {
-    if (A.x == B.x && A.y == B.y && A.z == B.z)
+bool LinePlaneIntersection::IncorrectPlane(const Dot A, const Dot B,
+    const Dot C) {
+    if (A == B)
         return true;
-    if (A.x == C.x && A.y == C.y && A.z == C.z)
+    if (A == C)
         return true;
-    if (C.x == B.x && C.y == B.y && C.z == B.z)
+    if (C == B)
         return true;
     return false;
 }
@@ -90,4 +91,8 @@ Dot LinePlaneIntersection::PlaneIntersectLine(Dot A, Dot B, Dot C,
 
 bool LinePlaneIntersection::GetNotIntersectPlaneLine() {
     return NotIntersectPlaneLine;
+}
+
+bool operator== (const Dot A, const Dot B) {
+    return A.x == B.x && A.y == B.y && A.z == B.z;
 }
