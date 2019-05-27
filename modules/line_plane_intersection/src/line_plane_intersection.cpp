@@ -42,14 +42,13 @@ void LinePlaneIntersection::Normalize(Dot A) {
     A.z = A.z / mvn;
 }
 
-bool LinePlaneIntersection::IncorrectLine(const Dot A, const Dot B) {
+bool LinePlaneIntersection::IncorrectLine(Dot A, Dot B) {
     if (A == B)
         return true;
     return false;
 }
 
-bool LinePlaneIntersection::IncorrectPlane(const Dot A, const Dot B,
-    const Dot C) {
+bool LinePlaneIntersection::IncorrectPlane(Dot A, Dot B, Dot C) {
     if (A == B)
         return true;
     if (A == C)
@@ -93,6 +92,6 @@ bool LinePlaneIntersection::GetNotIntersectPlaneLine() {
     return NotIntersectPlaneLine;
 }
 
-bool operator== (const Dot A, const Dot B) {
-    return A.x == B.x && A.y == B.y && A.z == B.z;
+bool Dot::operator== (const Dot &A) const {
+    return this->x == A.x && this->y == A.y && this->z == A.z;
 }
