@@ -5,52 +5,52 @@
 #include "include/complex_number.h"
 
 TEST(Trenina_Elizaveta_ComplexNumberTest, Can_Create_Without_Parameters) {
-    // Act & Assert 
+    // Act & Assert
     ASSERT_NO_THROW(ComplexNumber{});
 }
 
 TEST(Trenina_Elizaveta_ComplexNumberTest, Can_Create_Copy) {
-    // Arrange 
+    // Arrange
     ComplexNumber a(11.5, 17.8);
 
-    // Act 
+    // Act
     ComplexNumber b(a);
 
-    // Assert 
+    // Assert
     EXPECT_EQ(a, b);
 }
 
 TEST(Trenina_Elizaveta_ComplexNumberTest, Can_Multiply_Negative_Numbers) {
-    // Arrange 
+    // Arrange
     ComplexNumber a(-1.1, -1.0);
     ComplexNumber b(-10.0, -1.0);
     ComplexNumber exp(10.0, 11.1);
 
-    // Act 
+    // Act
     ComplexNumber act(a*b);
 
-    // Assert 
+    // Assert
     EXPECT_EQ(exp, act);
 }
 
 TEST(Trenina_Elizaveta_ComplexNumberTest, Cant_Divide_By_Zero) {
-    // Arrange 
+    // Arrange
     ComplexNumber a(11.5, 17.8);
     ComplexNumber b(0.0, 0.0);
 
-    // Act & Assert 
+    // Act & Assert
     EXPECT_ANY_THROW(a / b);
 }
 
 TEST(Trenina_Elizaveta_ComplexNumberTest, Can_Calculate_With_Parentheses) {
-    // Arrange 
+    // Arrange
     ComplexNumber a(1.1, 2.1);
     ComplexNumber b(8.9, 17.9);
     ComplexNumber c(2.0, 2.0);
     ComplexNumber exp(-20.0, 60.0);
-    // Act 
+    // Act
     ComplexNumber act = (a + b)*c;
 
-    // Assert 
+    // Assert
     EXPECT_EQ(exp, act);
 }
