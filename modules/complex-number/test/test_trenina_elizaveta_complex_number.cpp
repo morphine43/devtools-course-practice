@@ -1,8 +1,8 @@
 // Copyright 2019 Trenina Elizaveta
 
-#include <gtest/gtest.h> 
+#include <gtest/gtest.h>
 
-#include "include/complex_number.h" 
+#include "include/complex_number.h"
 
 TEST(Trenina_Elizaveta_ComplexNumberTest, Can_Create_Without_Parameters) {
     // Act & Assert 
