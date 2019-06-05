@@ -33,13 +33,17 @@ TEST(Trenina_Elizaveta_ComplexNumberTest, Can_Multiply_Negative_Numbers) {
     EXPECT_EQ(exp, act);
 }
 
-TEST(Trenina_Elizaveta_ComplexNumberTest, Cant_Divide_By_Zero) {
+TEST(Trenina_Elizaveta_ComplexNumberTest, Can_Assign_Some_Numbers) {
     // Arrange
-    ComplexNumber a(11.5, 17.8);
-    ComplexNumber b(0.0, 0.0);
+    ComplexNumber a(-1.1, -1.0);
+    ComplexNumber b(-10.0, -1.0);
+    ComplexNumber c(10.0, 11.1);
 
-    // Act & Assert
-    EXPECT_ANY_THROW(a / b);
+    // Act
+    a = b = c;
+
+    // Assert
+    EXPECT_TRUE(a == c);
 }
 
 TEST(Trenina_Elizaveta_ComplexNumberTest, Can_Calculate_With_Parentheses) {
