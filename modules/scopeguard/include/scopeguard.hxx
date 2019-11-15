@@ -10,23 +10,20 @@
 #include <utility>
 
 // ScopeGuard
-template <class Ty>
+template <typename Ty>
 struct ScopeGuard
 {
     ScopeGuard(Ty&& obj) : func_(obj) { }
-    ScopeGuard(ScopeGuard&& other) : func_(std::move(other.func_)), active_(other.active_)
-    {
+    ScopeGuard(ScopeGuard&& other) : func_(std::move(other.func_)), active_(other.active_) {
         other.active_ = false;
     }
 
-    ~ScopeGuard()
-    {
+    ~ScopeGuard() {
         if (active_)
             func_();
     }
 
-    void disarm()
-    {
+    void disarm() {
         active_ = false;
     }
 
@@ -39,8 +36,7 @@ private:
     ScopeGuard& operator=(const ScopeGuard&) = delete;
 };
 
-template <class Ty> inline
-auto makeScopeGuard(Ty&& fn) -> ScopeGuard<Ty>
-{
-    return std::forward<Ty>(fn);
+template <typename Ty> inline
+ScopeGuard<Ty> makeScopeGuard(Ty&& fn) {
+    return ScopeGuard<Ty>(std::forward<Ty>(fn));
 }
