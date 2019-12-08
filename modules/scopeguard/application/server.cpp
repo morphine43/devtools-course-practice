@@ -1,28 +1,47 @@
-#include <iostream>
+/**
+ * Copyright 2019 Nikita Danilov
+ */
+
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
-#include <pthread.h>
 #ifdef _WIN32
-/* See http://stackoverflow.com/questions/12765743/getaddrinfo-on-win32 */
 #ifndef _WIN32_WINNT
-#define _WIN32_WINNT 0x0501  /* Windows XP. */
+#define _WIN32_WINNT 0x0501  // Windows XP.
 #endif
 #include <winsock2.h>
 #include <Ws2tcpip.h>
+#pragma comment(lib, "ws2_32.lib")
 #else
-/* Assume that any non-Windows platform uses POSIX-style sockets instead. */
+// Assume that any non-Windows platform uses POSIX-style sockets instead.
 #include <sys/socket.h>
 #include <arpa/inet.h>
-#include <netdb.h>  /* Needed for getaddrinfo() and freeaddrinfo() */
-#include <unistd.h> /* Needed for close() */
-#include <netdb.h>
+#include <netdb.h>   // Needed for getaddrinfo() and freeaddrinfo()
+#include <unistd.h>  // Needed for close()
 #include <sys/types.h>
 #include <netinet/in.h>
 using SOCKET = int;
 #endif
 
-#define PORT "8080"
+#include <iostream>
+#include <thread>
+#include <mutex>
+
+const char *inet_ntop_compat(int af, const void *src,
+                             char *dst, socklen_t cnt) {
+    if (af == AF_INET) {
+        struct sockaddr_in in;
+        memset(&in, 0, sizeof(in));
+        in.sin_family = AF_INET;
+        memcpy(&in.sin_addr, src, sizeof(struct in_addr));
+        getnameinfo((struct sockaddr *)&in, sizeof(struct
+            sockaddr_in), dst, cnt, NULL, 0, NI_NUMERICHOST);
+        return dst;
+    }
+    return NULL;
+}
+
+#define PORT "4343"
 #define BACKLOG 10
 
 #define MAX_MSG_SIZE 1024
@@ -35,20 +54,18 @@ struct Client {
 };
 
 Client** clients;
-pthread_mutex_t clients_mutex;
+std::mutex clients_mutex;
 
-int socketInit(void)
-{
+int socketInit(void) {
 #ifdef _WIN32
     WSADATA wsa_data;
-    return WSAStartup(MAKEWORD(1,1), &wsa_data);
+    return WSAStartup(MAKEWORD(1, 1), &wsa_data);
 #else
     return 0;
 #endif
 }
 
-int socketQuit(void)
-{
+int socketQuit(void) {
 #ifdef _WIN32
     return WSACleanup();
 #else
@@ -56,8 +73,7 @@ int socketQuit(void)
 #endif
 }
 
-int socketClose(SOCKET sock)
-{
+int socketClose(SOCKET sock) {
     int status = 0;
 
 #ifdef _WIN32
@@ -77,14 +93,18 @@ int socketClose(SOCKET sock)
 
 void *getInAddr(struct sockaddr *sa) {
     if (sa->sa_family == AF_INET) {
-        return &(((struct sockaddr_in*)sa)->sin_addr);
+        struct sockaddr_in *sockaddr_in = (struct sockaddr_in*)sa;
+        struct in_addr *sin_addr = &sockaddr_in->sin_addr;
+        return sin_addr;
+    } else {
+        struct sockaddr_in6 *sockaddr_in6 = (struct sockaddr_in6*)sa;
+        struct in6_addr *sin6_addr = &sockaddr_in6->sin6_addr;
+        return sin6_addr;
     }
-
-    return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
 void addClient(Client* client) {
-    pthread_mutex_lock(&clients_mutex);
+    clients_mutex.lock();
 
     for (int i = 0; i < MAX_CLIENTS; i++) {
         if (clients[i] == NULL) {
@@ -93,11 +113,11 @@ void addClient(Client* client) {
         }
     }
 
-    pthread_mutex_unlock(&clients_mutex);
+    clients_mutex.unlock();
 }
 
-void removeClient(int* sockfd) {
-    pthread_mutex_lock(&clients_mutex);
+void removeClient(SOCKET* sockfd) {
+    clients_mutex.lock();
 
     for (int i = 0; i < MAX_CLIENTS; i++) {
         if (clients[i] != NULL) {
@@ -113,65 +133,70 @@ void removeClient(int* sockfd) {
         }
     }
 
-    pthread_mutex_unlock(&clients_mutex);
+    clients_mutex.unlock();
 }
 
 void sendMessageToClients(Client* client, char msg[]) {
     char send_msg[MAX_MSG_SIZE + MAX_USERNAME + 3];
-    strcpy(send_msg, "[");
-    strcat(send_msg, client->username);
-    strcat(send_msg, "]");
-    strcat(send_msg, ": ");
-    strcat(send_msg, msg);
+    snprintf(send_msg, MAX_MSG_SIZE + MAX_USERNAME + 3,
+             "[%s]: %s", client->username, msg);
 
-    pthread_mutex_lock(&clients_mutex);
+    clients_mutex.lock();
 
     for (int i = 0; i < MAX_CLIENTS; i++) {
         if (clients[i] != NULL && clients[i]->sockfd != client->sockfd) {
-            int* sockfd = clients[i]->sockfd;
-            if (send(*sockfd, send_msg, MAX_MSG_SIZE + MAX_USERNAME + 3 - 1, 0) == -1) {
+            SOCKET* sockfd = clients[i]->sockfd;
+            int status;
+
+            status = send(*sockfd, send_msg,
+                          MAX_MSG_SIZE + MAX_USERNAME + 3 - 1, 0);
+            if (status == -1) {
                 std::cerr << "send msg" << std::endl;
             }
         }
     }
 
-    pthread_mutex_unlock(&clients_mutex);
+    clients_mutex.unlock();
 }
 
 void sendJoinedMessageToClients(Client* client) {
     char joined_msg[MAX_MSG_SIZE];
-    strcpy(joined_msg, client->username);
-    strcat(joined_msg, " joined");
-
-    pthread_mutex_lock(&clients_mutex);
+    snprintf(joined_msg, MAX_MSG_SIZE, "%s joined", client->username);
+    clients_mutex.lock();
 
     for (int i = 0; i < MAX_CLIENTS; i++) {
         if (clients[i] != NULL && clients[i]->sockfd != client->sockfd) {
-            if (send(*(clients[i]->sockfd), joined_msg, MAX_MSG_SIZE -1, 0) == -1) {
+            int status;
+
+            status = send(*(clients[i]->sockfd),
+                          joined_msg, MAX_MSG_SIZE -1, 0);
+            if (status == -1) {
                 std::cerr << "send joined" << std::endl;
             }
         }
     }
 
-    pthread_mutex_unlock(&clients_mutex);
+    clients_mutex.unlock();
 }
 
 void sendLeftMessageToClients(Client* client) {
-    pthread_mutex_lock(&clients_mutex);
+    clients_mutex.lock();
 
     char left_msg[MAX_MSG_SIZE];
-    strcpy(left_msg, client->username);
-    strcat(left_msg, " left");
+    snprintf(left_msg, MAX_MSG_SIZE, "%s left", client->username);
 
     for (int i = 0; i < MAX_CLIENTS; i++) {
         if (clients[i] != NULL && clients[i]->sockfd != client->sockfd) {
-            if (send(*(clients[i]->sockfd), left_msg, MAX_MSG_SIZE -1, 0) == -1) {
+            int status;
+
+            status = send(*(clients[i]->sockfd), left_msg, MAX_MSG_SIZE -1, 0);
+            if (status == -1) {
                 std::cerr << "send left" << std::endl;
             }
         }
     }
 
-    pthread_mutex_unlock(&clients_mutex);
+    clients_mutex.unlock();
 }
 
 void setUsername(Client* client) {
@@ -188,22 +213,20 @@ void setUsername(Client* client) {
     }
 
     std::cout << "server: user " << username << " join" << std::endl;
-    strcpy(client->username, username);
+    snprintf(client->username, MAX_USERNAME, "%s", username);
 }
 
-void *clientHandler(void* sock) {
-    SOCKET* sockfd = (SOCKET*) sock;
-    int numbytes;
+void clientHandler(SOCKET* sock) {
     char msg[MAX_MSG_SIZE];
 
     Client* client = new Client();
-    client->sockfd = sockfd;
+    client->sockfd = sock;
     setUsername(client);
     addClient(client);
     sendJoinedMessageToClients(client);
 
-    while (true){
-        numbytes = recv(*sockfd, msg, MAX_MSG_SIZE, 0);
+    while (true) {
+        int numbytes = recv(*sock, msg, MAX_MSG_SIZE, 0);
 
         if (numbytes == -1) {
             std::cerr << "recv msg" << std::endl;
@@ -212,21 +235,22 @@ void *clientHandler(void* sock) {
             break;
         }
 
-        std::cout << "server: " << client->username << " writing: " << msg << std::endl;
+        std::cout << "server: " << client->username
+                  << " writing: " << msg << std::endl;
 
         sendMessageToClients(client, msg);
     }
 
-    std::cout << "server: user " << client->username << " has left" << std::endl;
-    socketClose(*sockfd);
+    std::cout << "server: user " << client->username
+              << " has left" << std::endl;
+    socketClose(*sock);
     sendLeftMessageToClients(client);
-    removeClient(sockfd);
-    pthread_exit(NULL);
+    removeClient(sock);
 }
 
 void createAndBindSocket(SOCKET* sockfd) {
     struct addrinfo hints, *servinfo, *p;
-    int yes = 1;
+    int yes = 0;
     int rv;
 
     memset(&hints, 0, sizeof(hints));
@@ -240,12 +264,17 @@ void createAndBindSocket(SOCKET* sockfd) {
     }
 
     for (p = servinfo; p != NULL; p = p->ai_next) {
-        if ((*sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
+        *sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
+        if (*sockfd == -1) {
             std::cerr << "server: socket" << std::endl;
             continue;
         }
 
-        if (setsockopt(*sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)) == -1) {
+        int status;
+
+        status = setsockopt(*sockfd, SOL_SOCKET, SO_REUSEADDR,
+                            reinterpret_cast<char*>(&yes), sizeof(yes));
+        if (status == -1) {
             std::cerr << "setsockopt" << std::endl;
             exit(1);
         }
@@ -268,16 +297,16 @@ void createAndBindSocket(SOCKET* sockfd) {
 }
 
 void initClients() {
-    pthread_mutex_lock(&clients_mutex);
+    clients_mutex.lock();
     clients = new Client*[MAX_CLIENTS];
     for (int i = 0; i < MAX_CLIENTS; i++) {
         clients[i] = NULL;
     }
-    pthread_mutex_unlock(&clients_mutex);
+    clients_mutex.unlock();
 }
 
 void deinitClients() {
-    pthread_mutex_lock(&clients_mutex);
+    clients_mutex.lock();
     for (int i = 0; i < MAX_CLIENTS; i++) {
         if (clients[i] != NULL) {
             delete clients[i]->sockfd;
@@ -286,7 +315,7 @@ void deinitClients() {
     }
 
     delete[] clients;
-    pthread_mutex_unlock(&clients_mutex);
+    clients_mutex.unlock();
 }
 
 int main() {
@@ -306,19 +335,22 @@ int main() {
     struct sockaddr_storage their_addr;
     socklen_t sin_size;
     char s[INET6_ADDRSTRLEN];
-    while (true){
-        SOCKET* new_fd = new int;
+    while (true) {
+        SOCKET* new_fd = new SOCKET;
+
         sin_size = sizeof(their_addr);
-        if ((*new_fd = accept(sockfd, (struct sockaddr *) &their_addr, &sin_size)) == -1) {
+        *new_fd = accept(sockfd, (struct sockaddr *) &their_addr, &sin_size);
+        if (*new_fd == -1) {
             std::cerr << "accept" << std::endl;
             continue;
         }
 
-        inet_ntop(their_addr.ss_family, getInAddr((struct sockaddr *) &their_addr), s, sizeof(s));
+        inet_ntop_compat(their_addr.ss_family,
+                  getInAddr((struct sockaddr *) &their_addr), s, sizeof(s));
         std::cout << "server: got connection from " << s << std::endl;
 
-        pthread_t client;
-        pthread_create(&client, NULL, clientHandler, new_fd);
+        auto thread = std::thread(clientHandler, new_fd);
+        thread.detach();
     }
 
     deinitClients();

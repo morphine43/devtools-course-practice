@@ -1,46 +1,64 @@
-#include <iostream>
+/**
+ * Copyright 2019 Nikita Danilov
+ */
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
-#include <pthread.h>
 #ifdef _WIN32
-/* See http://stackoverflow.com/questions/12765743/getaddrinfo-on-win32 */
 #ifndef _WIN32_WINNT
-#define _WIN32_WINNT 0x0501  /* Windows XP. */
+#define _WIN32_WINNT 0x0501  // Windows XP.
 #endif
 #include <winsock2.h>
 #include <Ws2tcpip.h>
+#pragma comment(lib, "ws2_32.lib")
 #else
-/* Assume that any non-Windows platform uses POSIX-style sockets instead. */
+// Assume that any non-Windows platform uses POSIX-style sockets instead.
 #include <sys/socket.h>
 #include <arpa/inet.h>
-#include <netdb.h>  /* Needed for getaddrinfo() and freeaddrinfo() */
-#include <unistd.h> /* Needed for close() */
-#include <netdb.h>
+#include <netdb.h>   // Needed for getaddrinfo() and freeaddrinfo()
+#include <unistd.h>  // Needed for close()
 #include <sys/types.h>
 #include <netinet/in.h>
+#include <netinet/ip6.h>
 using SOCKET = int;
 #endif
 
-#define SERVER_PORT "8080"
+
+#include <iostream>
+#include <thread>
+#include <chrono>
+#include <future>
+
+const char *inet_ntop_compat(int af, const void *src,
+                             char *dst, socklen_t cnt) {
+    if (af == AF_INET) {
+        struct sockaddr_in in;
+        memset(&in, 0, sizeof(in));
+        in.sin_family = AF_INET;
+        memcpy(&in.sin_addr, src, sizeof(struct in_addr));
+        getnameinfo((struct sockaddr *)&in, sizeof(struct
+            sockaddr_in), dst, cnt, NULL, 0, NI_NUMERICHOST);
+        return dst;
+    }
+    return NULL;
+}
+
+#define SERVER_PORT "4343"
 #define MAX_MSG_SIZE 1024
 #define MAX_USERNAME 32
 
-pthread_mutex_t sockfd_mutex;
 char* username;
 
-int socketInit(void)
-{
+int socketInit(void) {
 #ifdef _WIN32
     WSADATA wsa_data;
-    return WSAStartup(MAKEWORD(1,1), &wsa_data);
+    return WSAStartup(MAKEWORD(1, 1), &wsa_data);
 #else
     return 0;
 #endif
 }
 
-int socketQuit(void)
-{
+int socketQuit(void) {
 #ifdef _WIN32
     return WSACleanup();
 #else
@@ -48,9 +66,7 @@ int socketQuit(void)
 #endif
 }
 
-int socketClose(SOCKET sock)
-{
-
+int socketClose(SOCKET sock) {
     int status = 0;
 
 #ifdef _WIN32
@@ -68,12 +84,20 @@ int socketClose(SOCKET sock)
     return status;
 }
 
-void* getInAddr(struct sockaddr* sa) {
+void *getInAddr(struct sockaddr *sa) {
     if (sa->sa_family == AF_INET) {
-        return &(((struct sockaddr_in*)sa)->sin_addr);
-    }
+        struct sockaddr_in *sockaddr_in;
+        sockaddr_in = reinterpret_cast<struct sockaddr_in*>(sa);
+        struct in_addr *sin_addr = &sockaddr_in->sin_addr;
 
-    return &(((struct sockaddr_in6*)sa)->sin6_addr);
+        return sin_addr;
+    } else {
+        struct sockaddr_in6 *sockaddr_in6;
+        sockaddr_in6 = reinterpret_cast<struct sockaddr_in6*>(sa);
+        struct in6_addr *sin6_addr = &sockaddr_in6->sin6_addr;
+
+        return sin6_addr;
+    }
 }
 
 void createAndConnectSocket(SOCKET* sockfd, char* hostname) {
@@ -87,17 +111,20 @@ void createAndConnectSocket(SOCKET* sockfd, char* hostname) {
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
 
-    if ((rv = getaddrinfo(hostname, SERVER_PORT, &hints, &servinfo)) != 0) {
+    rv = getaddrinfo(hostname, SERVER_PORT, &hints, &servinfo);
+    if (rv != 0) {
         std::cerr << "getaddrinfo: " << gai_strerror(rv) << std::endl;
         exit(1);
     }
 
     for (p = servinfo; p != NULL; p = p->ai_next) {
-        if ((*sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
+        *sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
+        if (*sockfd == -1) {
             continue;
         }
 
-        if (connect(*sockfd, p->ai_addr, p->ai_addrlen) == -1) {
+        size_t con = connect(*sockfd, p->ai_addr, p->ai_addrlen);
+        if (con == size_t(-1)) {
             socketClose(*sockfd);
             continue;
         }
@@ -110,16 +137,15 @@ void createAndConnectSocket(SOCKET* sockfd, char* hostname) {
         exit(1);
     }
 
-    inet_ntop(p->ai_family, getInAddr((struct sockaddr *)p->ai_addr), s, sizeof(s));
+    inet_ntop_compat(p->ai_family, getInAddr((struct sockaddr *)p->ai_addr),
+              s, sizeof(s));
     std::cout << "client: connecting to " << s << std::endl;
 
     freeaddrinfo(servinfo);
 }
 
-void* outputHandler(void* sock) {
-    SOCKET* sockfd = (SOCKET*) sock;
-
-    if (send(*sockfd, username, MAX_USERNAME -1, 0) == -1) {
+void outputHandler(SOCKET* sock) {
+    if (send(*sock, username, MAX_USERNAME -1, 0) == -1) {
         std::cerr << "username send failed" << std::endl;
     }
 
@@ -132,34 +158,32 @@ void* outputHandler(void* sock) {
             break;
         }
 
-        if (send(*sockfd, send_msg, MAX_MSG_SIZE -1, 0) == -1) {
+        if (send(*sock, send_msg, MAX_MSG_SIZE -1, 0) == -1) {
             std::cerr << "message send failed" << std::endl;
         }
     }
-
-    return 0;
 }
 
-void* inputHandler(void* sock) {
-    SOCKET* sockfd = (SOCKET*) sock;
-
-    while (true) {
+void inputHandler(SOCKET* sock, std::future<void> futureObj) {
+#ifdef _WIN32
+    u_long iMode = 1;
+    ioctlsocket(*sock, FIONBIO, &iMode);
+#endif
+    while (futureObj.wait_for(std::chrono::milliseconds(1)) ==
+            std::future_status::timeout) {
         char recv_msg[MAX_MSG_SIZE + MAX_USERNAME + 3];
         int numbytes;
 
-        numbytes = recv(*sockfd, recv_msg, MAX_MSG_SIZE + MAX_USERNAME + 3, 0);
-
-        if (numbytes == -1) {
-            std::cerr << "message receive failed" << std::endl;
-            break;
-        } else if (numbytes == 0) {
-            break;
+#ifdef _WIN32
+        numbytes = recv(*sock, recv_msg, MAX_MSG_SIZE + MAX_USERNAME + 3, 0);
+#else
+        numbytes = recv(*sock, recv_msg, MAX_MSG_SIZE + MAX_USERNAME + 3,
+                        MSG_DONTWAIT);
+#endif
+        if (numbytes > 0) {
+            std::cout << recv_msg << std::endl;
         }
-
-        std::cout << recv_msg << std::endl;
     }
-
-    return 0;
 }
 
 int main(int argc, char* argv[]) {
@@ -178,17 +202,25 @@ int main(int argc, char* argv[]) {
     }
 
     socketInit();
-    SOCKET* sockfd = new int;
+    SOCKET* sockfd = new SOCKET;
     createAndConnectSocket(sockfd, hostname);
 
-    pthread_t input, output;
-    pthread_create(&input, NULL, outputHandler, sockfd);
-    pthread_create(&output, NULL, inputHandler, sockfd);
+    // Create a std::promise object
+    std::promise<void> exitSignal;
+    // Fetch std::future object associated with promise
+    std::future<void> futureObj = exitSignal.get_future();
 
-    pthread_join(input, NULL);
-    pthread_cancel(output);
+    std::thread outputThread(outputHandler, sockfd);
+    std::thread inputThread(inputHandler, sockfd, std::move(futureObj));
 
-    delete username;
+    outputThread.join();
+    exitSignal.set_value();
+    inputThread.join();
+
+    delete[] username;
+    if (hostname != NULL)
+        delete[] hostname;
+
     socketClose(*sockfd);
     delete sockfd;
 
